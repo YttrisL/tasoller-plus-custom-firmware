@@ -489,6 +489,9 @@ void led_load_packet(int section)
         }
         hsv_to_rgb(led_slider_hsv, SLIDER_LEDS, led_slider_rgb);
     }
+    if (led_ext_active()) {
+        return;                             /* the host sets the tower LEDs one by one, see led_ext.c */
+    }
     /* towers: three groups of eight LEDs each */
     for (group = 2; group >= 0; group--) {
         for (led = group * 8; led < group * 8 + 8; led++) {
@@ -537,6 +540,8 @@ void led_hsv_to_rgb_task(void)
             hsv_to_rgb(led_tower_a_hsv, TOWER_LEDS, led_tower_a_rgb);
         } else if (led_dirty[LED_STRIP_TOWER_A] == 2) {
             led_load_packet(1);
+        } else if (led_dirty[LED_STRIP_TOWER_A] == 3) {
+            led_ext_load(0);
         }
         led_dirty[LED_STRIP_TOWER_A] = 0;
         led_pending[LED_STRIP_TOWER_A] = 2;
@@ -545,6 +550,8 @@ void led_hsv_to_rgb_task(void)
             hsv_to_rgb(led_tower_b_hsv, TOWER_LEDS, led_tower_b_rgb);
         } else if (led_dirty[LED_STRIP_TOWER_B] == 2) {
             led_load_packet(2);
+        } else if (led_dirty[LED_STRIP_TOWER_B] == 3) {
+            led_ext_load(1);
         }
         led_dirty[LED_STRIP_TOWER_B] = 0;
         led_pending[LED_STRIP_TOWER_B] = 2;

@@ -3,7 +3,8 @@ void Reset_Handler(void)
 
 {
   uint32_t value;
-  
+
+  boot_snapshot_take();
   SYS_REGLCTL = 0x59;
   SYS_REGLCTL = 0x16;
   SYS_REGLCTL = 0x88;

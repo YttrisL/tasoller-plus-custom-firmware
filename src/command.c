@@ -48,6 +48,9 @@
 #define CMD_RESTART_TOUCH           0x35
 #define CMD_BRIGHTNESS              0x36    /* [0|1, air, slider] */
 #define CMD_TUNING                  0x37
+#define CMD_DUMP                    0x40    /* Supernova only: read the chip, see dump.c */
+#define CMD_SETTINGS                0x41    /* Supernova only: back up and restore the settings, see settings_transfer.c */
+#define CMD_LED                     0x42    /* Supernova only: asks for the extended LED packets, see led_ext.c */
 #define CMD_TOUCH_UPDATE_START      0xa0
 #define CMD_TOUCH_UPDATE_DATA       0xa2
 #define CMD_RESET                   0xa3
@@ -62,6 +65,7 @@ enum reply {
 #define ERROR_CODE              5
 #define READ                    0
 #define WRITE                   1
+#define MODE_QUERY_REAL         0xa5    /* after the read of CMD_DEVICE_MODE: report MODE_IO4 as such */
 
 /* The packet that says where the firmware update goes: slot B of the flash, where the bootloader looks
  * for it. */
@@ -624,10 +628,18 @@ static int extended_command(uint8_t *request, uint32_t command)
     case CMD_DEVICE_MODE:
         if (request[3] == READ) {
             command_reply.data[0] = 0;
-            command_reply.data[1] = settings.device_mode;
+            /* The official tool only knows modes 0 to 4 and sees the IO4-Emulation mode as WinUSB, which it is. The Supernova
+             * setup tool asks for the real mode with 0xa5 after the read command. */
+            command_reply.data[1] = request[4] == MODE_QUERY_REAL && settings_io4() ? MODE_IO4 : settings.device_mode;
             command_reply.length = 4;
         } else if (request[3] == WRITE) {
-            settings.device_mode = request[4];
+            if (request[4] == MODE_IO4) {
+                settings.device_mode = MODE_WINUSB;
+                settings.spare[SNV_MODE_BYTE] = SNV_MODE_IO4;
+            } else {
+                settings.device_mode = request[4];
+                settings.spare[SNV_MODE_BYTE] = SNV_MODE_SEEN;
+            }
             command_reply.length = 2;
             settings_flush(1);
         }
@@ -686,6 +698,12 @@ static int extended_command(uint8_t *request, uint32_t command)
         return brightness_command(request);
     case CMD_TUNING:
         return tuning_command(request);
+    case CMD_DUMP:
+        return dump_command(request);
+    case CMD_SETTINGS:
+        return settings_transfer_command(request);
+    case CMD_LED:
+        return led_ext_command(request);
     case CMD_TOUCH_UPDATE_START:
         touch_update_start_command();
         return REPLY_SEND;

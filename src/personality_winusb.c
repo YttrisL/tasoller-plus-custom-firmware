@@ -97,6 +97,10 @@ void winusb_report_out(uint8_t *data, uint32_t length)
     if (touch_state != TOUCH_STATE_RUNNING) {
         return;
     }
+    if (led_ext_packet(data, length)) {
+        led_mode = LED_HOST_PACKET;         /* the individual tower LEDs of Supernova, see led_ext.c */
+        return;
+    }
     if (data[0] == 'D' && data[1] == 'L') {
         memcpy((void *)&led_packet, data, length);
     } else {

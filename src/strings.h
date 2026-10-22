@@ -32,6 +32,9 @@
 /* The same for the WinUSB personality. */
 #define USB_NAME_WINUSB         "Supernova WINUSB mode"
 
+/* The IO4-Emulation mode: the WinUSB personality under another name. */
+#define USB_NAME_IO4            "Supernova IO4 emulation mode"
+
 /* The WebUSB landing page, https://github.com/YttrisL/tasoller-plus-custom-firmware: the scheme (0 is
  * http://, 1 is https://) and the rest of the URL. The descriptor is built from them in usb_device.c. */
 #define WEBUSB_URL_SCHEME       1

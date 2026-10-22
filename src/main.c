@@ -20,6 +20,8 @@ void runtime_state_init(void)
     touch_state = TOUCH_STATE_DETECT;
     touch_update_mode = 0;
     led_mode = LED_LOCAL;
+    led_ext_until = 0;
+    usbd_ctrl_out_done = 0;
     dbt_packet.tag[0] = 'D';
     dbt_packet.tag[1] = 'B';
     dbt_packet.tag[2] = 'T';
@@ -47,6 +49,7 @@ void main(void)
         input_delay_task();
         led_hsv_to_rgb_task();
         command_task();
+        io4_task();
         settings_flush(0);
         stream_control_task();
         touch_report_task();

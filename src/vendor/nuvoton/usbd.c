@@ -222,6 +222,11 @@ void USBD_CtrlOut(void)
         g_usbd_CtrlOutSize += length;
         if (g_usbd_CtrlOutSize < g_usbd_CtrlOutSizeLimit) {
             USBD_MXPLD1 = g_usbd_CtrlMaxPktSize;
+        } else if (usbd_ctrl_out_done != 0) {
+            void (*done)(void) = usbd_ctrl_out_done;
+
+            usbd_ctrl_out_done = 0;
+            done();
         }
     }
 }
@@ -505,6 +510,22 @@ void USBD_IRQHandler(void)
         if ((status & USBD_INTSTS_EP(7)) != 0) {
             USBD_INTSTS = USBD_INTSTS_EP(7);
             EP7_Handler();
+        }
+        if ((status & USBD_INTSTS_EP(8)) != 0) {
+            USBD_INTSTS = USBD_INTSTS_EP(8);
+            EP8_Handler();
+        }
+        if ((status & USBD_INTSTS_EP(9)) != 0) {
+            USBD_INTSTS = USBD_INTSTS_EP(9);
+            EP9_Handler();
+        }
+        if ((status & USBD_INTSTS_EP(10)) != 0) {
+            USBD_INTSTS = USBD_INTSTS_EP(10);
+            EP10_Handler();
+        }
+        if ((status & USBD_INTSTS_EP(11)) != 0) {
+            USBD_INTSTS = USBD_INTSTS_EP(11);
+            EP11_Handler();
         }
     }
 }

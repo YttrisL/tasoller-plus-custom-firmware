@@ -11,3 +11,7 @@ void EP4_Handler(void);
 void EP5_Handler(void);
 void EP6_Handler(void);
 void EP7_Handler(void);
+void EP8_Handler(void);
+void EP9_Handler(void);
+void EP10_Handler(void);
+void EP11_Handler(void);

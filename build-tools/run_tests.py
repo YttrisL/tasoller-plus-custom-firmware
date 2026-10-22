@@ -174,6 +174,40 @@ class CBuildTest(unittest.TestCase):
         self.assertEqual(self.image.count(descriptor), 1)
         self.assertNotIn(b"www.gamo2.com", self.image)
 
+    def test_io4_descriptors_are_consistent(self):
+        """The USB descriptors of the IO4-Emulation personality: lengths add up, the endpoints are the ones the firmware sets up."""
+        def blob(name, size):
+            at = self.syms[name] - IMAGE_BASE
+            return self.image[at:at + size]
+        device = blob("io4_device_descriptor", 18)
+        self.assertEqual(struct.unpack_from("<HH", device, 8), (0x0CA3, 0x0021))      # the ID of the real I/O board
+        config = blob("io4_config_descriptor", 9)
+        config = blob("io4_config_descriptor", struct.unpack_from("<H", config, 2)[0])
+        report = blob("io4_report_descriptor", 0x71)
+        i, endpoints, interfaces, hid_lengths = 0, [], [], []
+        while i < len(config):
+            length, kind = config[i], config[i + 1]
+            self.assertGreater(length, 1)
+            if kind == 4:
+                interfaces.append(config[i + 2])
+            elif kind == 5:
+                endpoints.append(config[i + 2])
+            elif kind == 0x21:
+                hid_lengths.append(struct.unpack_from("<H", config, i + 7)[0])
+            i += length
+        self.assertEqual(i, len(config))
+        self.assertEqual(config[4], len(interfaces))
+        self.assertEqual(interfaces, [0, 1, 2, 3, 4, 5, 6, 7])
+        # the command channel of the other modes (interface 1: IN 5, OUT 6), the I/O board, the slider's serial port and its
+        # notifications, the two LED boards; the endpoint numbers are all different (the controller finds an endpoint by its number)
+        self.assertEqual(sorted(endpoints), sorted([0x84, 0x85, 0x06, 0x81, 0x03, 0x87, 0x88, 0x02, 0x8A, 0x09]))
+        self.assertEqual(len({e & 15 for e in endpoints}), len(endpoints))
+        self.assertEqual(hid_lengths, [len(report), 0x1F])
+        j = 0
+        while j < len(report):                  # the report descriptor is made of whole items
+            j += 1 + {0: 0, 1: 1, 2: 2, 3: 4}[report[j] & 3]
+        self.assertEqual(j, len(report))
+
     def test_vector_table(self):
         words = struct.unpack_from("<110I", self.image, 0)
         self.assertEqual(words[0], 0x2001ED48)

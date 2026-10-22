@@ -107,6 +107,18 @@ typedef struct {
 
 #define settings (*(volatile settings_t *)0x200165A0u)
 
+/* The IO4-Emulation mode (MODE_IO4, see io4.c) works like the WinUSB mode for everything but USB. It is not a value of
+ * settings.device_mode: that stays MODE_WINUSB, so that the official firmware and tool, which only know modes 0 to 4,
+ * read the same settings page as a plain WinUSB device. Supernova keeps its choice in one of the spare bytes, which the official firmware keeps as it
+ * is: SNV_MODE_IO4 for the IO4-Emulation mode, SNV_MODE_SEEN when a mode was chosen with Supernova or the official tool.
+ * Any other value means the page was never seen by Supernova, which then makes the IO4-Emulation mode the mode (see
+ * settings_load). The setup tool sees the mode as MODE_IO4 (5) only when it asks for it with CMD_DEVICE_MODE. */
+#define MODE_IO4            5
+#define SNV_MODE_BYTE       27
+#define SNV_MODE_IO4        0x49
+#define SNV_MODE_SEEN       0x53
+#define settings_io4()      (settings.device_mode == MODE_WINUSB && settings.spare[SNV_MODE_BYTE] == SNV_MODE_IO4)
+
 _Static_assert(offsetof(settings_t, device_mode) == 9, "settings layout");
 _Static_assert(sizeof(settings_t) - offsetof(settings_t, device_mode) == SETTINGS_SIZE, "settings size");
 _Static_assert(offsetof(settings_t, touch_param_bd) == 0x28, "settings layout");
@@ -470,6 +482,22 @@ typedef struct {
 
 /* The hardware information string, from the flash (hardware_info_load). */
 #define hardware_info       ((volatile uint8_t *)0x20005C78u)
+
+/* The boot snapshot of the chip dump (dump.c): the registers as the bootloader left them, 0x570 bytes. It is above the
+ * stack, in RAM that the stock firmware does not use and the start-up code does not clear. */
+#define boot_snapshot       ((volatile uint32_t *)0x20020000u)
+
+/* Colours of the individual tower LEDs (led_ext.c): 2 towers of 24 LEDs, red green blue, counted from the bottom, and the
+ * time until which they are in use. */
+#define led_ext_raw         ((volatile uint8_t *)0x20021400u)
+#define led_ext_until       (*(volatile uint32_t *)0x20021500u)
+
+/* A function the control endpoint calls when the data stage of the request it was prepared for (USBD_PrepareCtrlOut) is
+ * complete, or 0. It is called once. */
+#define usbd_ctrl_out_done  (*(void (* volatile *)(void))0x20021600u)
+
+/* Where a settings backup is collected before it replaces the settings (settings_transfer.c): SETTINGS_SIZE bytes. */
+#define settings_staging    ((volatile uint8_t *)0x20021000u)
 
 #define DEFAULT_THRESHOLD   0x55
 

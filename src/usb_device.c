@@ -9,6 +9,10 @@
  *   EP5       OUT 0x03  data for the personality (the LED packets)
  *   EP6       IN  0x81  the stream of touch frames
  *   EP7       OUT 0x02  start and stop of the stream
+ *
+ * In the IO4-Emulation mode (io4.c) EP4 is the IN 0x84 of the I/O board, EP5 the OUT 0x03 and EP6 the IN 0x81 of the serial
+ * port, and EP7 its notification endpoint IN 0x87 (the stream is not offered). EP8 to EP11 are the two LED boards, OUT 0x02 and IN 0x88,
+ * OUT 0x09 and IN 0x8a.
  */
 
 #include "ss321.h"
@@ -28,6 +32,12 @@
 #define EP5_BUFFER              0xd0
 #define EP6_BUFFER              0x110
 #define EP7_BUFFER              0x150
+#define EP7_IO4_BUFFER          0x1d0   /* the notification endpoint of the serial port, with no data. The USB SRAM is 512 bytes (BUFSEG stops at 0x1f8) */
+#define EP8_BUFFER              0x150   /* only in the IO4-Emulation mode: the LED boards, packets of 32 bytes */
+#define EP9_BUFFER              0x170
+#define EP10_BUFFER             0x190
+#define EP11_BUFFER             0x1b0
+#define LED_BUFFER_SIZE         0x20
 
 /* USB interrupt number */
 #define USBD_IRQ                53
@@ -68,9 +78,23 @@ static void usb_endpoints_init(void)
     USBD_BUFSEG4 = EP4_BUFFER;
     USBD_CFG6 = CFG_IN | 1;
     USBD_BUFSEG6 = EP6_BUFFER;
-    USBD_CFG7 = CFG_OUT | 2;
-    USBD_BUFSEG7 = EP7_BUFFER;
-    USBD_MXPLD7 = EP_BUFFER_SIZE;
+    USBD_BUFSEG7 = settings_io4() ? EP7_IO4_BUFFER : EP7_BUFFER;
+    if (settings_io4()) {
+        USBD_CFG7 = CFG_IN | 7;             /* the notifications of the serial port, never sent */
+        USBD_CFG8 = CFG_OUT | 2;            /* the LED boards: the data from the game on the left board ... */
+        USBD_BUFSEG8 = EP8_BUFFER;
+        USBD_MXPLD8 = LED_BUFFER_SIZE;
+        USBD_CFG9 = CFG_IN | 8;             /* ... what the board answers ... */
+        USBD_BUFSEG9 = EP9_BUFFER;
+        USBD_CFG10 = CFG_OUT | 9;           /* ... and the same for the right board */
+        USBD_BUFSEG10 = EP10_BUFFER;
+        USBD_MXPLD10 = LED_BUFFER_SIZE;
+        USBD_CFG11 = CFG_IN | 10;
+        USBD_BUFSEG11 = EP11_BUFFER;
+    } else {
+        USBD_CFG7 = CFG_OUT | 2;
+        USBD_MXPLD7 = EP_BUFFER_SIZE;
+    }
 }
 
 /* HID class requests on the control endpoint (the Nuvoton sample's HID_ClassRequest). */
@@ -79,6 +103,9 @@ void HID_ClassRequest(void)
     uint8_t setup[8];
 
     USBD_GetSetupPacket(setup);
+    if (settings_io4() && io4_class_request(setup)) {
+        return;
+    }
     if (setup[0] & 0x80) {
         USBD_SetStall(0);                   /* GET_REPORT, GET_IDLE, GET_PROTOCOL: stall */
     } else if (setup[1] == 9) {             /* SET_REPORT */
@@ -102,10 +129,17 @@ void WinUSB_VendorRequest(void)
 
     if (g_usbd_SetupPacket[1] == VENDOR_REQUEST_MS_OS) {
         if (index == 7) {
-            if (length > MS_OS_DESCRIPTOR_SIZE) {
-                length = MS_OS_DESCRIPTOR_SIZE;
+            const uint8_t *descriptor = (const uint8_t *)usb_ms_os_descriptor;
+            uint32_t size = MS_OS_DESCRIPTOR_SIZE;
+
+            if (settings_io4()) {
+                descriptor = io4_ms_os_descriptor;
+                size = IO4_MS_OS_SIZE;
             }
-            USBD_PrepareCtrlIn((const uint8_t *)usb_ms_os_descriptor, length);
+            if (length > size) {
+                length = size;
+            }
+            USBD_PrepareCtrlIn(descriptor, length);
             USBD_PrepareCtrlOut(0, 0);
         }
     } else if (g_usbd_SetupPacket[1] == VENDOR_REQUEST_WEBUSB && (index == 2 || index == 1)) {
@@ -224,4 +258,25 @@ void EP7_Handler(void)
     }
     stream_ctl_pending = 1;
     USBD_MXPLD7 = EP_BUFFER_SIZE;
+}
+
+/* EP8 to EP11: the LED boards of the IO4-Emulation mode, a data endpoint of the host and one of the board for each. */
+void EP8_Handler(void)
+{
+    io4_led_board_out(0);
+}
+
+void EP9_Handler(void)
+{
+    io4_led_board_in(0);
+}
+
+void EP10_Handler(void)
+{
+    io4_led_board_out(1);
+}
+
+void EP11_Handler(void)
+{
+    io4_led_board_in(1);
 }

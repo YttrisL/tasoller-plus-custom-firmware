@@ -18,7 +18,13 @@ void personality_select(void)
     for (i = 0; i < PAD_COUNT; i++) {
         winusb_pad[i] = winusb_pad_table[i];
     }
-    if (settings.device_mode == MODE_WINUSB) {
+    usbd_info.gu8StringDesc = usb_string_table;         /* the IO4-Emulation personality has strings of its own */
+    if (settings_io4()) {
+        touch_decode_hook = winusb_decode_touch;
+        service_button_hook = winusb_service_button;
+        test_button_hook = winusb_test_button;
+        io4_personality_init();
+    } else if (settings.device_mode == MODE_WINUSB) {
         report_in_hook = (report_in_fn_t)winusb_report_in;
         report_out_hook = (report_out_fn_t)winusb_report_out;
         touch_decode_hook = winusb_decode_touch;

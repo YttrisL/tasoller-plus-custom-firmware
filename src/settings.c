@@ -132,24 +132,12 @@ void thresholds_reset(void)
     }
 }
 
-/* Read the settings from flash, replace what is missing or out of range by defaults and derive
- * the LED brightness factors. */
-void settings_load(void)
+/* Replace what is missing or out of range in the settings by defaults. */
+static void settings_sanitize(void)
 {
-    uint32_t page[0x200];
     uint32_t i;
 
-    SYS_UnlockReg();
-    FMC_Open();
-    FMC_ISPCTL |= 8;
-    for (i = 0; i < 0x200; i = (i + 1) & 0xffff) {
-        page[i] = FMC_Read(SETTINGS_FLASH + i * 4);
-    }
-    FMC_Close();
-    SYS_REGLCTL = 0;
-    memcpy((void *)&settings.device_mode, page, SETTINGS_SIZE);
-
-    if (settings.device_mode > 5) {
+    if (settings.device_mode > MODE_KEYBOARD_32K) {
         settings.device_mode = MODE_WINUSB;
     }
     if (settings.spare[0] == ERASED) {
@@ -193,18 +181,14 @@ void settings_load(void)
     if (settings.slider_brightness_percent > 100) {
         settings.slider_brightness_percent = 100;
     }
-    if (settings.key_map[0] != SETTINGS_MARKER) {
-        /* no valid settings: factory defaults */
-        settings.input_delay = 0xb;
-        settings.key_map[0] = SETTINGS_MARKER;
-        settings.device_mode = MODE_WINUSB;
-        key_map_reset_4k();
-        key_map_reset_8k();
-        key_map_reset_16k();
-        key_map_reset_32k();
-        thresholds_reset();
-        settings_flush(1);
-    }
+}
+
+/* Derive what the rest of the firmware computes from the settings: the touch tuning defaults, the input
+ * delay queue, the calibration tables and the LED brightness factors. */
+static void settings_apply(void)
+{
+    uint32_t i;
+
     if (settings.touch_param_be == 0 || settings.touch_param_be > 0xff) {
         settings.touch_param_be = 0x23;
     }
@@ -219,4 +203,62 @@ void settings_load(void)
     touch_calibration_compute();
     settings.tower_brightness = (((float)settings.air_brightness * 1.0f) / 100.0f) * 0.5f;
     settings.slider_brightness = ((float)settings.slider_brightness_percent * 1.0f) / 100.0f;
+}
+
+/* Read the settings from flash, replace what is missing or out of range by defaults and derive
+ * the LED brightness factors. */
+void settings_load(void)
+{
+    uint32_t page[0x200];
+    uint32_t i;
+
+    SYS_UnlockReg();
+    FMC_Open();
+    FMC_ISPCTL |= 8;
+    for (i = 0; i < 0x200; i = (i + 1) & 0xffff) {
+        page[i] = FMC_Read(SETTINGS_FLASH + i * 4);
+    }
+    FMC_Close();
+    SYS_REGLCTL = 0;
+    memcpy((void *)&settings.device_mode, page, SETTINGS_SIZE);
+
+    settings_sanitize();
+    if (settings.key_map[0] != SETTINGS_MARKER) {
+        /* no valid settings: factory defaults */
+        settings.input_delay = 0xb;
+        settings.key_map[0] = SETTINGS_MARKER;
+        settings.device_mode = MODE_WINUSB;
+        key_map_reset_4k();
+        key_map_reset_8k();
+        key_map_reset_16k();
+        key_map_reset_32k();
+        thresholds_reset();
+        settings_flush(1);
+    }
+    if (settings.spare[SNV_MODE_BYTE] != SNV_MODE_IO4 && settings.spare[SNV_MODE_BYTE] != SNV_MODE_SEEN) {
+        /* the page comes from the official firmware, from an earlier Supernova or is new: the IO4-Emulation mode is the default */
+        settings.device_mode = MODE_WINUSB;
+        settings.spare[SNV_MODE_BYTE] = SNV_MODE_IO4;
+        settings_flush(1);
+    }
+    settings_apply();
+}
+
+/* Make the SETTINGS_SIZE bytes at `block` (a settings block read from another device or an earlier backup) the
+ * settings in use, as if they had been read from flash, and have them saved. Refused (false) when the block does
+ * not carry the marker of a valid settings page. The caller restarts the device so that every part of the
+ * firmware starts from the new values. */
+bool settings_replace(const volatile uint8_t *block)
+{
+    if (block[offsetof(settings_t, key_map) - offsetof(settings_t, device_mode)] != SETTINGS_MARKER) {
+        return false;
+    }
+    memcpy((void *)&settings.device_mode, (const void *)block, SETTINGS_SIZE);
+    if (settings.spare[SNV_MODE_BYTE] != SNV_MODE_IO4) {
+        settings.spare[SNV_MODE_BYTE] = SNV_MODE_SEEN;     /* a file from before the IO4-Emulation mode keeps its mode */
+    }
+    settings_sanitize();
+    settings_apply();
+    settings_dirty = 1;
+    return true;
 }
