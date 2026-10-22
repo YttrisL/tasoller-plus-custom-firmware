@@ -135,8 +135,15 @@ typedef struct {
 #define SNV_LED_COLOR_MARK  0x43
 #define SNV_LED_COLOR       23
 #define snv_led_colour(k)   (settings.spare[SNV_LED_COLOR_SET] == SNV_LED_COLOR_MARK ? settings.spare[SNV_LED_COLOR + (k)] : 0xff)
-#define settings_io4()      (settings.device_mode == MODE_WINUSB && settings.spare[SNV_MODE_BYTE] == SNV_MODE_IO4)
-#define settings_static_light() (settings_io4() && settings.spare[SNV_LED_BYTE] != SNV_LED_EMULATION)
+/* The mode in the settings (what the setup tool wrote, which is only used at the next personality_select), and the mode the device runs: the personality
+ * that was selected, with its state initialised. The setup tool changes the first, then restarts the USB connection, which selects the personality again;
+ * until then the code of the running personality must not look at the settings: a mode that is not initialised has garbage for its state. */
+#define settings_io4_saved()        (settings.device_mode == MODE_WINUSB && settings.spare[SNV_MODE_BYTE] == SNV_MODE_IO4)
+#define settings_static_light_saved() (settings_io4_saved() && settings.spare[SNV_LED_BYTE] != SNV_LED_EMULATION)
+#define io4_active          (*(volatile uint8_t *)0x20021508u)      /* the IO4-Emulation personality is selected and initialised */
+#define io4_static_active   (*(volatile uint8_t *)0x20021509u)      /* ... with the static light of the air towers */
+#define settings_io4()      (io4_active != 0)
+#define settings_static_light() (io4_active != 0 && io4_static_active != 0)
 
 _Static_assert(offsetof(settings_t, device_mode) == 9, "settings layout");
 _Static_assert(sizeof(settings_t) - offsetof(settings_t, device_mode) == SETTINGS_SIZE, "settings size");

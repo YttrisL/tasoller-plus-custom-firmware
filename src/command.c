@@ -631,7 +631,7 @@ static int extended_command(uint8_t *request, uint32_t command)
             command_reply.data[0] = 0;
             /* The official tool only knows modes 0 to 4 and sees the IO4-Emulation mode as WinUSB, which it is. The Supernova
              * setup tool asks for the real mode with 0xa5 after the read command. */
-            command_reply.data[1] = request[4] == MODE_QUERY_REAL && settings_io4() ? MODE_IO4 : settings.device_mode;
+            command_reply.data[1] = request[4] == MODE_QUERY_REAL && settings_io4_saved() ? MODE_IO4 : settings.device_mode;
             command_reply.length = 4;
         } else if (request[3] == WRITE) {
             if (request[4] == MODE_IO4) {

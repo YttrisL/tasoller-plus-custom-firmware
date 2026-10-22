@@ -56,6 +56,7 @@ typedef struct {
     uint8_t string_led[2][64];
     io4_led_board_t led_board[2];
     uint8_t fn_coin;                /* a function button sends the coin signal at the moment (to add one credit per press) */
+    uint8_t string_command[64];     /* the name of the command channel interface, which the host shows as the description of the device */
 } io4_state_t;
 
 #define io4                 (*(volatile io4_state_t *)0x20022000u)

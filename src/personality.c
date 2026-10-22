@@ -19,11 +19,15 @@ void personality_select(void)
         winusb_pad[i] = winusb_pad_table[i];
     }
     usbd_info.gu8StringDesc = usb_string_table;         /* the IO4-Emulation personality has strings of its own */
-    if (settings_io4()) {
+    io4_active = 0;                                     /* the one that runs now stops until the new one is ready */
+    io4_static_active = 0;
+    if (settings_io4_saved()) {
         touch_decode_hook = winusb_decode_touch;
         service_button_hook = winusb_service_button;
         test_button_hook = winusb_test_button;
         io4_personality_init();
+        io4_static_active = settings_static_light_saved();
+        io4_active = 1;
     } else if (settings.device_mode == MODE_WINUSB) {
         report_in_hook = (report_in_fn_t)winusb_report_in;
         report_out_hook = (report_out_fn_t)winusb_report_out;

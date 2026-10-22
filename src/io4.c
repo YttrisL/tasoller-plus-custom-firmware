@@ -198,7 +198,6 @@ const uint8_t io4_ms_os_static_descriptor[IO4_MS_OS_STATIC_SIZE] = {
 static const uint8_t empty_string[2] = { 2, 3 };
 #define IO4_FIELD(name)         ((const volatile uint8_t *)(0x20022000u + offsetof(io4_state_t, name)))
 #define STRING_LANGUAGE         ((const volatile uint8_t *)0x20000184u)         /* stock string 0: English (US) */
-#define STRING_INTERFACE_NAME   ((const volatile uint8_t *)0x20000188u)         /* stock string 4: "Supernova" */
 static const volatile uint8_t * const io4_string_table[256] = {
     [0 ... 255] = empty_string,
     [0] = STRING_LANGUAGE,
@@ -206,7 +205,7 @@ static const volatile uint8_t * const io4_string_table[256] = {
     [2] = IO4_FIELD(string_product),
     [3] = IO4_FIELD(string_cdc),
     [4] = IO4_FIELD(string_io4),
-    [5] = STRING_INTERFACE_NAME,
+    [5] = IO4_FIELD(string_command),            /* the command channel of Supernova: named after the mode, the host shows it as the description */
     [6] = IO4_FIELD(string_led[0]),
     [7] = IO4_FIELD(string_led[1]),
 };
@@ -480,18 +479,19 @@ void io4_personality_init(void)
     usb_string_descriptor_set((uint8_t *)io4.string_product, USB_NAME_IO4);
     usb_string_descriptor_set((uint8_t *)io4.string_cdc, CDC_NAME_STRING);
     usb_string_descriptor_set((uint8_t *)io4.string_io4, IO4_PRODUCT_STRING);
+    usb_string_descriptor_set((uint8_t *)io4.string_command, USB_NAME_IO4);
     usb_string_descriptor_set((uint8_t *)io4.string_led[0], LED_NAME_STRING_LEFT);
     usb_string_descriptor_set((uint8_t *)io4.string_led[1], LED_NAME_STRING_RIGHT);
-    usbd_info.gu8DevDesc = settings_static_light() ? io4_device_static_descriptor : io4_device_descriptor;
-    usbd_info.gu8ConfigDesc = settings_static_light() ? io4_config_static_descriptor : io4_config_descriptor;
-    usbd_info.gu8BosDesc = settings_static_light() ? io4_bos_static_descriptor : io4_bos_descriptor;
+    usbd_info.gu8DevDesc = settings_static_light_saved() ? io4_device_static_descriptor : io4_device_descriptor;
+    usbd_info.gu8ConfigDesc = settings_static_light_saved() ? io4_config_static_descriptor : io4_config_descriptor;
+    usbd_info.gu8BosDesc = settings_static_light_saved() ? io4_bos_static_descriptor : io4_bos_descriptor;
     usbd_info.gu8StringDesc = io4_string_table;
     usb_hid_report_table[IO4_INTERFACE_IO4] = io4_report_descriptor;
     usb_hid_report_sizes[IO4_INTERFACE_IO4] = sizeof io4_report_descriptor;
     usb_hid_report_table[IO4_INTERFACE_COMMAND] = usb_hid_report_vendor;
     usb_hid_report_sizes[IO4_INTERFACE_COMMAND] = 0x1f;
     io4_slider_init();
-    if (!settings_static_light()) {
+    if (!settings_static_light_saved()) {
         io4_led_boards_init();
     }
 }
