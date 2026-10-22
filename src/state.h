@@ -117,7 +117,26 @@ typedef struct {
 #define SNV_MODE_BYTE       27
 #define SNV_MODE_IO4        0x49
 #define SNV_MODE_SEEN       0x53
+/* IO4-Emulation only: unless this spare byte holds SNV_LED_EMULATION the two LED boards are not offered (no COM ports for them) and the air towers
+ * show one colour, whatever the game does; the slider is not affected. That is the default (a byte that was never set holds something else), and
+ * SNV_LED_STATIC is what the setup tool writes for it. The colour is the three bytes from SNV_LED_COLOR once SNV_LED_COLOR_SET holds
+ * SNV_LED_COLOR_MARK, white otherwise. */
+/* IO4-Emulation: the signals the two function buttons send to the game. SNV_FN_MARKER holds SNV_FN_MARK once the setup tool wrote a choice (the
+ * bytes hold the 0x3c of the official firmware before). Then, from SNV_FN_FIRST, five bytes for each of FN1, FN2 and both together: a mask of
+ * the 32 buttons of the I/O board (four bytes, little endian) and 1 when the button also adds a credit. Any number of signals can be chosen.
+ * Default: FN1 is TEST, FN2 is SERVICE, and nothing for both together (each sends its own). */
+#define SNV_FN_MARKER       17
+#define SNV_FN_MARK         0x47
+#define SNV_FN_FIRST        2
+#define SNV_LED_BYTE        26
+#define SNV_LED_STATIC      0x53
+#define SNV_LED_EMULATION   0x45
+#define SNV_LED_COLOR_SET   22
+#define SNV_LED_COLOR_MARK  0x43
+#define SNV_LED_COLOR       23
+#define snv_led_colour(k)   (settings.spare[SNV_LED_COLOR_SET] == SNV_LED_COLOR_MARK ? settings.spare[SNV_LED_COLOR + (k)] : 0xff)
 #define settings_io4()      (settings.device_mode == MODE_WINUSB && settings.spare[SNV_MODE_BYTE] == SNV_MODE_IO4)
+#define settings_static_light() (settings_io4() && settings.spare[SNV_LED_BYTE] != SNV_LED_EMULATION)
 
 _Static_assert(offsetof(settings_t, device_mode) == 9, "settings layout");
 _Static_assert(sizeof(settings_t) - offsetof(settings_t, device_mode) == SETTINGS_SIZE, "settings size");
@@ -491,6 +510,8 @@ typedef struct {
  * time until which they are in use. */
 #define led_ext_raw         ((volatile uint8_t *)0x20021400u)
 #define led_ext_until       (*(volatile uint32_t *)0x20021500u)
+/* When the static light of the towers is next laid down again (led_ext.c), 0 for as soon as possible. */
+#define led_static_ms       (*(volatile uint32_t *)0x20021504u)
 
 /* A function the control endpoint calls when the data stage of the request it was prepared for (USBD_PrepareCtrlOut) is
  * complete, or 0. It is called once. */

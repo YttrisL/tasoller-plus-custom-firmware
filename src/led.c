@@ -428,6 +428,9 @@ void air_led_set(int beam, uint32_t blocked)
         return;
     }
     air_blocked[beam] = (uint8_t)blocked;
+    if (settings_static_light()) {
+        return;                             /* the towers show the static light, not the beams */
+    }
     led_dirty[LED_STRIP_TOWER_B] = 1;
     led_dirty[LED_STRIP_TOWER_A] = 1;
     for (i = 0; i < 4; i++) {
@@ -489,8 +492,8 @@ void led_load_packet(int section)
         }
         hsv_to_rgb(led_slider_hsv, SLIDER_LEDS, led_slider_rgb);
     }
-    if (led_ext_active()) {
-        return;                             /* the host sets the tower LEDs one by one, see led_ext.c */
+    if (led_ext_active() || settings_static_light()) {
+        return;                             /* the host sets the tower LEDs one by one, or they show the static light, see led_ext.c */
     }
     /* towers: three groups of eight LEDs each */
     for (group = 2; group >= 0; group--) {

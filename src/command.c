@@ -51,6 +51,7 @@
 #define CMD_DUMP                    0x40    /* Supernova only: read the chip, see dump.c */
 #define CMD_SETTINGS                0x41    /* Supernova only: back up and restore the settings, see settings_transfer.c */
 #define CMD_LED                     0x42    /* Supernova only: asks for the extended LED packets, see led_ext.c */
+#define CMD_IO4_BUTTONS             0x43    /* Supernova only: the signals of the function buttons in the IO4-Emulation mode, see io4.c */
 #define CMD_TOUCH_UPDATE_START      0xa0
 #define CMD_TOUCH_UPDATE_DATA       0xa2
 #define CMD_RESET                   0xa3
@@ -704,6 +705,8 @@ static int extended_command(uint8_t *request, uint32_t command)
         return settings_transfer_command(request);
     case CMD_LED:
         return led_ext_command(request);
+    case CMD_IO4_BUTTONS:
+        return io4_buttons_command(request);
     case CMD_TOUCH_UPDATE_START:
         touch_update_start_command();
         return REPLY_SEND;

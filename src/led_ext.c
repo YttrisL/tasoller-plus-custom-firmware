@@ -97,9 +97,62 @@ void led_ext_towers(uint32_t tower, const uint8_t *colors)
     led_mode = LED_HOST_PACKET;
 }
 
+/* The static light of the air towers (IO4-Emulation mode, see SNV_LED_BYTE): every LED of both towers shows the one colour of the settings,
+ * whatever the game does. It is laid down in the individual tower LEDs and again every LED_STATIC_REAPPLY_MS, which also puts it back
+ * after the lights were turned off, and after a host (the setup tool, to test the LEDs) stopped setting the towers one by one. */
+#define LED_STATIC_REAPPLY_MS   500
+
+void led_static_task(void)
+{
+    uint32_t tower, led, k;
+
+    if (!settings_static_light()) {
+        return;
+    }
+    if (led_ext_active()) {
+        led_static_ms = 0;                  /* the towers are being tested: put the light back as soon as that stops */
+        return;
+    }
+    if (led_static_ms != 0 && (int32_t)(led_static_ms - tick_ms) > 0) {
+        return;
+    }
+    for (tower = 0; tower < 2; tower++) {
+        for (led = 0; led < TOWER_LEDS; led++) {
+            for (k = 0; k < 3; k++) {
+                led_ext_raw[(tower * TOWER_LEDS + led) * 3 + k] = snv_led_colour(k);
+            }
+        }
+        led_dirty[LED_STRIP_TOWER_A + tower] = 3;
+    }
+    led_static_ms = tick_ms + LED_STATIC_REAPPLY_MS;
+}
+
 /* CMD_LED. Returns the status command_process expects: 0 to send command_reply, 1 for an error. */
 uint32_t led_ext_command(const uint8_t *request)
 {
+    if (request[3] == 2) {                  /* the LED mode of the IO4-Emulation mode: [2] -> [2, static light (0 or 1), red, green, blue] */
+        command_reply.data[0] = 2;
+        command_reply.data[1] = settings.spare[SNV_LED_BYTE] != SNV_LED_EMULATION;
+        command_reply.data[2] = snv_led_colour(0);
+        command_reply.data[3] = snv_led_colour(1);
+        command_reply.data[4] = snv_led_colour(2);
+        command_reply.length += 5;
+        return REPLY_SEND;
+    }
+    if (request[3] == 3 && request[0] >= 2 + 6) {   /* [3, static light, red, green, blue, save]: the colour is shown at once, the mode is used at the next start */
+        settings.spare[SNV_LED_BYTE] = request[4] ? SNV_LED_STATIC : SNV_LED_EMULATION;
+        settings.spare[SNV_LED_COLOR_SET] = SNV_LED_COLOR_MARK;
+        settings.spare[SNV_LED_COLOR] = request[5];
+        settings.spare[SNV_LED_COLOR + 1] = request[6];
+        settings.spare[SNV_LED_COLOR + 2] = request[7];
+        led_static_ms = 0;
+        if (request[8]) {
+            settings_flush(1);
+        }
+        command_reply.data[0] = 3;
+        command_reply.length += 1;
+        return REPLY_SEND;
+    }
     if (request[3] == 1 && request[4] <= 1 && request[0] >= 2 + 2 + 9) {
         led_ext_towers(request[4], request + 5);
         command_reply.data[0] = 1;

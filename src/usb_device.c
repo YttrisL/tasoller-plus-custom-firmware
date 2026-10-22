@@ -12,7 +12,8 @@
  *
  * In the IO4-Emulation mode (io4.c) EP4 is the IN 0x84 of the I/O board, EP5 the OUT 0x03 and EP6 the IN 0x81 of the serial
  * port, and EP7 its notification endpoint IN 0x87 (the stream is not offered). EP8 to EP11 are the two LED boards, OUT 0x02 and IN 0x88,
- * OUT 0x09 and IN 0x8a.
+ * OUT 0x09 and IN 0x8a; with the static light of the air towers there are no LED boards and EP8 alone takes the LED packets of the setup
+ * tool (OUT 0x02, the same packets as in the WinUSB mode).
  */
 
 #include "ss321.h"
@@ -83,14 +84,18 @@ static void usb_endpoints_init(void)
         USBD_CFG7 = CFG_IN | 7;             /* the notifications of the serial port, never sent */
         USBD_CFG8 = CFG_OUT | 2;            /* the LED boards: the data from the game on the left board ... */
         USBD_BUFSEG8 = EP8_BUFFER;
-        USBD_MXPLD8 = LED_BUFFER_SIZE;
-        USBD_CFG9 = CFG_IN | 8;             /* ... what the board answers ... */
-        USBD_BUFSEG9 = EP9_BUFFER;
-        USBD_CFG10 = CFG_OUT | 9;           /* ... and the same for the right board */
-        USBD_BUFSEG10 = EP10_BUFFER;
-        USBD_MXPLD10 = LED_BUFFER_SIZE;
-        USBD_CFG11 = CFG_IN | 10;
-        USBD_BUFSEG11 = EP11_BUFFER;
+        if (settings_static_light()) {      /* no LED boards: the one endpoint takes the LED packets of the setup tool, 64 bytes each */
+            USBD_MXPLD8 = EP_BUFFER_SIZE;
+        } else {
+            USBD_MXPLD8 = LED_BUFFER_SIZE;
+            USBD_CFG9 = CFG_IN | 8;         /* ... what the board answers ... */
+            USBD_BUFSEG9 = EP9_BUFFER;
+            USBD_CFG10 = CFG_OUT | 9;       /* ... and the same for the right board */
+            USBD_BUFSEG10 = EP10_BUFFER;
+            USBD_MXPLD10 = LED_BUFFER_SIZE;
+            USBD_CFG11 = CFG_IN | 10;
+            USBD_BUFSEG11 = EP11_BUFFER;
+        }
     } else {
         USBD_CFG7 = CFG_OUT | 2;
         USBD_MXPLD7 = EP_BUFFER_SIZE;
@@ -132,7 +137,10 @@ void WinUSB_VendorRequest(void)
             const uint8_t *descriptor = (const uint8_t *)usb_ms_os_descriptor;
             uint32_t size = MS_OS_DESCRIPTOR_SIZE;
 
-            if (settings_io4()) {
+            if (settings_static_light()) {
+                descriptor = io4_ms_os_static_descriptor;
+                size = IO4_MS_OS_STATIC_SIZE;
+            } else if (settings_io4()) {
                 descriptor = io4_ms_os_descriptor;
                 size = IO4_MS_OS_SIZE;
             }
@@ -263,6 +271,18 @@ void EP7_Handler(void)
 /* EP8 to EP11: the LED boards of the IO4-Emulation mode, a data endpoint of the host and one of the board for each. */
 void EP8_Handler(void)
 {
+    if (settings_static_light()) {          /* the LED packets of the setup tool, as in the WinUSB mode */
+        uint32_t buffer = USBD_BUFSEG8;
+        uint32_t length = USBD_MXPLD8 & 0xffff;
+        uint32_t i;
+
+        for (i = 0; i < length && i < EP_BUFFER_SIZE; i++) {
+            ep5_out_buffer[i] = USB_SRAM[i + buffer];
+        }
+        winusb_report_out((uint8_t *)ep5_out_buffer, length);
+        USBD_MXPLD8 = EP_BUFFER_SIZE;
+        return;
+    }
     io4_led_board_out(0);
 }
 

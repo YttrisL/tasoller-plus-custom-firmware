@@ -208,6 +208,47 @@ class CBuildTest(unittest.TestCase):
             j += 1 + {0: 0, 1: 1, 2: 2, 3: 4}[report[j] & 3]
         self.assertEqual(j, len(report))
 
+    def test_io4_static_light_descriptors(self):
+        """The configuration with the static light of the air towers (no LED boards, one vendor interface) and the Microsoft OS 2.0 sets."""
+        def blob(name, size):
+            at = self.syms[name] - IMAGE_BASE
+            return self.image[at:at + size]
+        static_device = blob("io4_device_static_descriptor", 18)
+        device = blob("io4_device_descriptor", 18)
+        self.assertEqual(static_device[:12], device[:12])                      # the same USB ID ...
+        self.assertEqual(static_device[14:], device[14:])
+        self.assertNotEqual(static_device[12:14], device[12:14])               # ... under another device version
+        config = blob("io4_config_static_descriptor", 9)
+        config = blob("io4_config_static_descriptor", struct.unpack_from("<H", config, 2)[0])
+        i, endpoints, interfaces = 0, [], []
+        while i < len(config):
+            length, kind = config[i], config[i + 1]
+            self.assertGreater(length, 1)
+            if kind == 4:
+                interfaces.append(config[i + 2])
+            elif kind == 5:
+                endpoints.append(config[i + 2])
+            i += length
+        self.assertEqual(i, len(config))
+        self.assertEqual(config[4], len(interfaces))
+        self.assertEqual(interfaces, [0, 1, 2, 3, 4])
+        self.assertEqual(sorted(endpoints), sorted([0x84, 0x85, 0x06, 0x81, 0x03, 0x87, 0x02]))
+        self.assertEqual(len({e & 15 for e in endpoints}), len(endpoints))
+        for name, size in (("io4_ms_os_descriptor", 156), ("io4_ms_os_static_descriptor", 224)):
+            ms = blob(name, size)
+            self.assertEqual(struct.unpack_from("<H", ms, 8)[0], size)        # the total length of the set
+            self.assertEqual(struct.unpack_from("<H", ms, 16)[0], size - 10)   # that of the configuration subset
+            j = 18
+            while j < size:                                                   # function subsets that add up
+                self.assertEqual(struct.unpack_from("<H", ms, j)[0], 8)
+                self.assertEqual(struct.unpack_from("<H", ms, j + 2)[0], 2)
+                j += struct.unpack_from("<H", ms, j + 6)[0]
+            self.assertEqual(j, size)
+        for name, size in (("io4_bos_descriptor", 156), ("io4_bos_static_descriptor", 224)):
+            bos = blob(name, 33)
+            self.assertEqual(struct.unpack_from("<H", bos, 2)[0], 33)
+            self.assertEqual(struct.unpack_from("<H", bos, 29)[0], size)      # the length of the set it announces
+
     def test_vector_table(self):
         words = struct.unpack_from("<110I", self.image, 0)
         self.assertEqual(words[0], 0x2001ED48)

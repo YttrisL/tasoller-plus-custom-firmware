@@ -8,6 +8,12 @@ program to install. To go back to the official firmware, just flash it back usin
 
 - **IO4-Emulation mode.** The device shows up to the game like the arcade hardware: the I/O board, the slider and the two LED
   boards. The game finds it by itself and no driver has to be installed. This is the default mode.
+- **Static light for the air towers.** In IO4-Emulation mode you can choose, in the **IO4 mode config** tab of the Toolkit, to give up
+  the two LED boards: the device then has no more COM ports to set up for them, and the air towers show one color that you pick,
+  whatever the game does. The slider is not affected. This is the default, in white at full brightness.
+- **Function buttons.** In IO4-Emulation mode each of the two function buttons of the device can send one or several signals of the arcade I/O board
+  to the game (TEST, SERVICE, a coin, or any other button of the board, the air beams included), and others can be sent when both are
+  pressed together. The default is TEST for button 1 and SERVICE for button 2. It is set in the **IO4 mode config** tab of the Toolkit.
 - **Settings backup.** **Export settings** saves the settings of the device (thresholds, key maps, USB mode, brightness...) to a file,
   **Import settings** puts them back, on the same device or on another one. It is in the **Config** tab.
 - **Memory dump.** Saves the whole content of the microcontroller to a zip file from the **Memory dump** tab, without any wiring.
@@ -36,8 +42,9 @@ extract the `.skystar` file and flash it the same way.
 
 ## Using IO4-Emulation mode
 
-In the game's `segatools.ini`, turn off the emulation of the hardware the device now provides: `[io4] enable=0`, `[slider] enable=0`
-and `[led15093] enable=0`.
+In the game's `segatools.ini`, turn off the emulation of the hardware the device now provides: `[io4] enable=0` and `[slider] enable=0`.
+`[led15093]` depends on the LED mode: `enable=0` with the LED driver emulation (the device emulates the LED boards), `enable=1` with the static
+light (it has none, so segatools emulates them). The **IO4 mode config** tab of the Toolkit shows the blocks to use for your choice.
 
 The device has three serial ports: the slider and the two LED boards. The game expects them on given COM numbers. In Windows, the
 Device Manager lists them as `USB Serial Device`; to change a number, open the port, then *Port Settings*, *Advanced*,
@@ -52,6 +59,8 @@ Device Manager lists them as `USB Serial Device`; to change a number, open the p
 
 The device asks Windows for `COM1`, `COM2` and `COM3` by itself, so with the default setup there is often nothing to change. If the
 game says "Initialization failure with the LED board 1" and "2", the ports are on the wrong numbers.
+
+With the static light there are no LED boards: the device only has the slider's port (`COM1`) and nothing else to set up.
 
 ## How to build
 

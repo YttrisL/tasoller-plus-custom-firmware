@@ -55,6 +55,7 @@ typedef struct {
     uint8_t string_io4[200];
     uint8_t string_led[2][64];
     io4_led_board_t led_board[2];
+    uint8_t fn_coin;                /* a function button sends the coin signal at the moment (to add one credit per press) */
 } io4_state_t;
 
 #define io4                 (*(volatile io4_state_t *)0x20022000u)
@@ -68,13 +69,18 @@ _Static_assert(sizeof(io4_state_t) <= 0x1000, "the IO4 state does not fit in its
 #define IO4_INTERFACE_LED_R     6
 
 #define IO4_MS_OS_SIZE      156     /* the Microsoft OS 2.0 descriptor set: header, configuration, and 3 functions of 46 bytes */
+#define IO4_MS_OS_STATIC_SIZE   224 /* with the static light: header, configuration, the slider (46 bytes) and the WinUSB interface (160) */
+#define IO4_CONFIG_STATIC_SIZE  148
 extern const uint8_t io4_bos_descriptor[33];
+extern const uint8_t io4_bos_static_descriptor[33];
 extern const uint8_t io4_ms_os_descriptor[IO4_MS_OS_SIZE];
+extern const uint8_t io4_ms_os_static_descriptor[IO4_MS_OS_STATIC_SIZE];
 void io4_personality_init(void);
 uint8_t *io4_report_in(uint32_t unused, uint16_t *length);
 void io4_cdc_out(uint8_t *data, uint32_t length);
 bool io4_class_request(const uint8_t *setup);
 void io4_task(void);
+uint32_t io4_buttons_command(const uint8_t *request);
 
 void io4_slider_init(void);
 void io4_slider_task(void);

@@ -378,6 +378,10 @@ void io4_led_boards_task(void)
 {
     uint32_t board;
 
+    if (settings_static_light()) {
+        return;                         /* the endpoints are not the boards' */
+    }
+
     for (board = 0; board < 2; board++) {
         volatile io4_led_board_t *b = &io4.led_board[board];
 

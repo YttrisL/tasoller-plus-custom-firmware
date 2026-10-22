@@ -50,6 +50,7 @@ void main(void)
         led_hsv_to_rgb_task();
         command_task();
         io4_task();
+        led_static_task();
         settings_flush(0);
         stream_control_task();
         touch_report_task();
