@@ -6,18 +6,17 @@ program to install. To go back to the official firmware, just flash it back usin
 
 ## Features
 
-- **IO4-Emulation mode.** The device shows up to the game like the arcade hardware: the I/O board, the slider and the two LED
-  boards. The game finds it by itself and no driver has to be installed. This is the default mode.
-- **Static light for the air towers.** In IO4-Emulation mode you can choose, in the **IO4 mode config** tab of the Toolkit, to give up
-  the two LED boards: the device then has no more COM ports to set up for them, and the air towers show one color that you pick,
-  whatever the game does. The slider is not affected. This is the default, in white at full brightness.
-- **Function buttons.** In IO4-Emulation mode each of the two function buttons of the device can send one or several signals of the arcade I/O board
-  to the game (TEST, SERVICE, a coin, or any other button of the board, the air beams included), and others can be sent when both are
-  pressed together. The default is TEST for button 1 and SERVICE for button 2. It is set in the **IO4 mode config** tab of the Toolkit.
-- **Settings backup.** **Export settings** saves the settings of the device (thresholds, key maps, USB mode, brightness...) to a file,
-  **Import settings** puts them back, on the same device or on another one. It is in the **Config** tab.
-- **Memory dump.** Saves the whole content of the microcontroller to a zip file from the **Memory dump** tab, without any wiring.
-  Nothing is written to the device. The unique chip ID is hidden in the file unless you ask for it.
+- **IO4-Emulation mode.** Supernova shows up to the game like the arcade hardware: the I/O board, the slider and the two LED
+  boards. The game finds it by itself and no driver has to be installed. **This is the default mode.** (IO4 emulation mode is
+  not compatible with pre-NEW! game version, use WinUSB mode for these)
+- **Static light for the air towers.** In IO4-Emulation mode you can choose to either let the game drive your air towers LEDs
+  using emulated LED drive boards, or set a static color or your choice instead. The game just displays static white by default.
+- **Function buttons.** In IO4-Emulation mode you can specify the value you want for the two function buttons on the side of the Tasoller.
+  Obvious candidates are `TEST`, `SERVICE` and `COIN`, but you can set it to any IO4 input value if you so desire.
+- **Settings backup.** Allows you to export and import your whole settings in a file for backup purposes or restoring on a different Tasoller.
+  Useful if you have custom sensitivity settings that you'd like to save or share with a friend.
+- **Memory dump.** Saves any part of the microcontroller's memory to a zip file from the **Memory dump** tab, without any wiring.
+  A full dump is useful in case your device end up fully bricked and needs restoring. Ram dump also helps for debugging purposes.
 
 The Toolkit only shows the tabs and buttons of these features when the device runs Supernova.
 
@@ -42,25 +41,32 @@ extract the `.skystar` file and flash it the same way.
 
 ## Using IO4-Emulation mode
 
-In the game's `segatools.ini`, turn off the emulation of the hardware the device now provides: `[io4] enable=0` and `[slider] enable=0`.
-`[led15093]` depends on the LED mode: `enable=0` with the LED driver emulation (the device emulates the LED boards), `enable=1` with the static
-light (it has none, so segatools emulates them). The **IO4 mode config** tab of the Toolkit shows the blocks to use for your choice.
+In the game's `segatools.ini`, turn off the emulation of the hardware the device now provides: 
+- `[io4] enable=0`
+- `[slider] enable=0`
 
-The device has three serial ports: the slider and the two LED boards. The game expects them on given COM numbers. In Windows, the
-Device Manager lists them as `USB Serial Device`; to change a number, open the port, then *Port Settings*, *Advanced*,
-*COM Port Number*. The slider is always `COM1`. The LED boards depend on the game:
+`[led15093]` depends on the LED mode: 
+- `enable=0` with the **LED driver emulation** (Supernova emulates the LED boards)
+- `enable=1` with the **static light** (Supernova then doesn't expose emulated LED drivers, so segatools has to do it)
+
+The **IO4 mode config** tab of the Toolkit shows the blocks to use for your choice.
+
+**With the static light there are no LED boards**: the device only has the slider's port (`COM1`) and nothing else to set up.
+**This is the default setting.**
+
+The device has at most three serial ports: the slider, and the two LED boards (if emulated). The game expects them on 
+given COM numbers. In Windows, the Device Manager lists them as `USB Serial Device`; to change a number, open the port, 
+then *Port Settings*, *Advanced*, *COM Port Number*. The slider is always `COM1`. The LED boards depend on the game:
 
 
 | Game                                                                   | Left LED board | Right LED board |
 | ---------------------------------------------------------------------- | -------------- | --------------- |
 | CHUNITHM NEW, CVT cabinet (`dipsw3=1` in `segatools.ini`, the default) | `COM2`         | `COM3`          |
 | CHUNITHM NEW, SP cabinet (`dipsw3=0`)                                  | `COM20`        | `COM21`         |
-| CHUNITHM (original)                                                    | `COM10`        | `COM11`         |
 
-The device asks Windows for `COM1`, `COM2` and `COM3` by itself, so with the default setup there is often nothing to change. If the
-game says "Initialization failure with the LED board 1" and "2", the ports are on the wrong numbers.
-
-With the static light there are no LED boards: the device only has the slider's port (`COM1`) and nothing else to set up.
+The device asks Windows to be assigned `COM1`, `COM2` and `COM3` by itself, so with the default setup there is often nothing to change. 
+If the game says "Initialization failure with the LED board 1" and "2", the ports are on the wrong numbers. 
+**Make sure your COM ports are not assigned twice.** If you see two device using COM1 for example, change the one that is not the Tasoller.
 
 ## How to build
 
@@ -78,3 +84,4 @@ This firmware was written with the help of AI. Claude (Anthropic) took part in t
 official firmware and in the base layout of this source: it analyzed the official image and gave pointers for the firmware recreation,
 checked the result against the official firmware, and renamed and organized the code into readable modules.
 The new features offered by the custom firmware are the author's creation, and every revision is extensively tested by humans on real hardware.
+Feel free to open Issues if needed.
